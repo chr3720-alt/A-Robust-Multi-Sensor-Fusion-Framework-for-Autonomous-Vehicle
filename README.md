@@ -1,0 +1,2 @@
+# A-Robust-Multi-Sensor-Fusion-Framework-for-Autonomous-Vehicle
+A Robust Multi-Sensor Fusion Framework for Autonomous Vehicles integrates data from multiple sensors such as cameras, LiDAR, radar, and IMU to improve perception and decision-making. By combining sensor information, the system enhances object detection, localization, and navigation accuracy for safer and more reliable autonomous driving.
