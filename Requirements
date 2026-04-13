@@ -1,0 +1,14 @@
+## 📋 Requirements
+
+### 💻 Software Requirements
+- Python 3.x  
+- ROS (Robot Operating System)  
+- Ubuntu Linux (recommended for ROS)  
+
+---
+
+### 📚 Required Libraries
+Install using pip:
+
+```bash
+pip install numpy scipy opencv-python matplotlib
