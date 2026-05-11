@@ -1,0 +1,40 @@
+# Requirements
+
+## Hardware Requirements
+
+- ESP32-CAM (AI Thinker Module)
+- MicroSD Card
+- FTDI Programmer / USB-to-Serial Adapter
+- Stable 5V Power Supply
+- Wi-Fi Network Connection
+- Computer/Laptop for Server Hosting
+
+---
+
+## Software Requirements
+
+### Arduino IDE / PlatformIO
+- ESP32 Board Package
+- C++ Compiler Support
+
+### Required Libraries
+
+Install the following libraries from Arduino Library Manager:
+
+- `esp32`
+- `WiFi`
+- `WiFiUdp`
+- `HTTPClient`
+- `WebServer`
+- `FS`
+- `SD_MMC`
+- `esp_camera`
+
+---
+
+## Python Server Requirements (PC Side)
+
+Install Python 3.8+ and the following packages:
+
+```bash
+pip install flask
