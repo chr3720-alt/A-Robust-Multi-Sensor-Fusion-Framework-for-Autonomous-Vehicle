@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>M·BOT Control</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+
+:root {
+  --bg:    #0d0d0d;
+  --bg2:   #141414;
+  --bg3:   #1c1c1c;
+  --cf:    repeating-linear-gradient(45deg,rgba(255,255,255,0.018) 0px,rgba(255,255,255,0.018) 1px,transparent 1px,transparent 4px),
+           repeating-linear-gradient(-45deg,rgba(255,255,255,0.018) 0px,rgba(255,255,255,0.018) 1px,transparent 1px,transparent 4px);
+  --red:   #e8001a;
+  --blue:  #1e6bff;
+  --green: #00ff88;
+  --amber: #ff8c00;
+  --text:  #c8c4bc;
+  --dim:   #484848;
+  --mono:  'Orbitron', monospace;
+  --sans:  'Rajdhani', sans-serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+html,body{width:100%;height:100dvh;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;}
+
+.shell{width:100%;height:100dvh;display:flex;flex-direction:column;position:relative;}
+.col-center{position:relative;display:flex;flex-direction:column;overflow:hidden;flex:1;}
+
+/* ── BUTTONS ── */
+.btn-brake{
+  flex:1;height:100%;max-width:120px;border-radius:10px;
+  border:2px solid var(--red);background:var(--bg3);background-image:var(--cf);
+  color:var(--red);font-family:var(--mono);font-size:8px;letter-spacing:2px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:6px;transition:all .12s;
+  box-shadow:0 0 10px rgba(232,0,26,.15);
+}
+.btn-brake.press,.btn-brake:active{background:var(--red);color:#fff;box-shadow:0 0 20px rgba(232,0,26,.6);}
+.btn-brake-icon{font-size:22px;}
+
+.btn-accel{
+  flex:1;height:100%;max-width:120px;border-radius:10px;
+  border:2px solid var(--green);background:var(--bg3);background-image:var(--cf);
+  color:var(--green);font-family:var(--mono);font-size:8px;letter-spacing:2px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:6px;transition:all .12s;
+  box-shadow:0 0 10px rgba(0,255,136,.1);
+}
+.btn-accel.press,.btn-accel:active{background:var(--green);color:#000;box-shadow:0 0 20px rgba(0,255,136,.5);}
+.btn-accel-icon{font-size:22px;}
+
+/* ── CAMERA ── */
+.cam-area{flex:1;position:relative;overflow:hidden;background:#000;}
+.camimg{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .5s;}
+.camimg.ok{opacity:1;}
+.nosig{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;
+  font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:3px;
+}
+.scanlines{position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);}
+.hud{position:absolute;inset:0;pointer-events:none;}
+.hc{position:absolute;width:14px;height:14px;border-color:var(--red);border-style:solid;opacity:.6;}
+.hc.tl{top:6px;left:6px;border-width:2px 0 0 2px;}
+.hc.tr{top:6px;right:6px;border-width:2px 2px 0 0;}
+.hc.bl{bottom:6px;left:6px;border-width:0 0 2px 2px;}
+.hc.br{bottom:6px;right:6px;border-width:0 2px 2px 0;}
+.mode-hud{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:8px;letter-spacing:2px;
+  background:rgba(0,0,0,.8);border:1px solid var(--blue);
+  color:var(--blue);padding:2px 8px;border-radius:2px;
+  transition:all .2s;white-space:nowrap;
+}
+.mode-hud.auto{border-color:var(--red);color:var(--red);}
+
+/* ── CAM STATUS BADGE (bottom-left of cam area) ── */
+.cam-badge{
+  position:absolute;bottom:8px;right:44px;
+  display:flex;align-items:center;gap:5px;
+  background:rgba(0,0,0,.82);border:1px solid #2a2a2a;
+  border-radius:3px;padding:3px 8px;pointer-events:none;
+  transition:border-color .3s;
+}
+.cam-badge.live{border-color:rgba(0,255,136,.4);}
+.cam-badge.dead{border-color:rgba(232,0,26,.3);}
+.cam-dot{width:5px;height:5px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:background .3s,box-shadow .3s;}
+.cam-dot.live{background:var(--green);box-shadow:0 0 6px var(--green);}
+.cam-dot.dead{background:var(--red);}
+.cam-txt{font-family:var(--mono);font-size:7px;letter-spacing:1.5px;color:var(--dim);transition:color .3s;}
+.cam-txt.live{color:var(--green);}
+.cam-txt.dead{color:var(--red);}
+
+/* ── DANGER OVERLAY ── */
+.danger-overlay{
+  position:absolute;inset:0;pointer-events:none;
+  border:3px solid transparent;transition:border-color .15s, background .15s;
+}
+.danger-overlay.warn{border-color:var(--amber);background:rgba(255,140,0,.05);}
+.danger-overlay.danger{border-color:var(--red);background:rgba(232,0,26,.08);animation:pulse-danger .4s infinite alternate;}
+@keyframes pulse-danger{from{background:rgba(232,0,26,.04);}to{background:rgba(232,0,26,.14);}}
+
+/* ── CONTROL ROW ── */
+.wheel-strip{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg2);border-top:1px solid #1e1e1e;
+  padding:6px 10px;flex-shrink:0;height:150px;gap:10px;
+}
+.wheel-center{display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px;}
+#wsv{
+  width:min(130px,30vw);height:min(130px,30vw);
+  transition:transform .07s linear;
+  filter:drop-shadow(0 4px 22px rgba(0,0,0,.85));
+  touch-action:none;
+}
+.steer-ind{font-family:var(--mono);font-size:8px;letter-spacing:1px;color:var(--dim);}
+
+/* ── HUD PANEL ── */
+.hud-panel{
+  position:absolute;top:6px;right:6px;
+  display:flex;flex-direction:column;gap:4px;z-index:20;pointer-events:none;
+}
+.hud-cell{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(13,13,13,.88);border:1px solid #2a2a2a;
+  border-radius:4px;padding:3px 6px 3px 4px;
+}
+.hud-canvas-wrap{position:relative;width:36px;height:36px;flex-shrink:0;}
+.hud-canvas-wrap canvas{width:36px;height:36px;}
+.hud-info{display:flex;flex-direction:column;line-height:1.1;}
+.hud-label{font-family:var(--mono);font-size:6px;letter-spacing:1.5px;color:var(--dim);}
+.hud-val{font-family:var(--mono);font-size:12px;font-weight:700;transition:color .2s;}
+.hud-unit{font-family:var(--mono);font-size:6px;color:var(--dim);}
+
+/* CAM HUD cell uses a different canvas render (FPS bar) */
+.hud-cell.cam-cell{border-color:rgba(30,107,255,.25);}
+.hud-cell.cam-cell.live{border-color:rgba(0,255,136,.3);}
+.hud-cell.cam-cell.dead{border-color:rgba(232,0,26,.25);}
+
+/* ── MODE BUTTONS ── */
+.mode-panel{position:absolute;top:6px;left:6px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+.mpill{
+  font-family:var(--mono);font-size:8px;letter-spacing:2px;
+  padding:5px 9px;border-radius:3px;border:1px solid #333;
+  background:rgba(13,13,13,.88);color:var(--dim);cursor:pointer;
+  transition:all .2s;pointer-events:all;white-space:nowrap;
+}
+.mpill.m-on{background:var(--blue);border-color:var(--blue);color:#fff;}
+.mpill.a-on{background:var(--red); border-color:var(--red); color:#fff;}
+
+/* ── BRAND ── */
+.brand-bar{
+  position:absolute;top:6px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:6px;
+  background:rgba(13,13,13,.85);border:1px solid #222;
+  border-radius:3px;padding:3px 10px;z-index:20;pointer-events:none;
+}
+.brand{font-family:var(--mono);font-size:9px;letter-spacing:4px;color:var(--red);font-weight:700;}
+.cdot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s,box-shadow .3s;}
+.cdot.on{background:var(--green);box-shadow:0 0 8px var(--green);}
+.clabel{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;}
+
+/* ── PERMISSION SCREEN ── */
+#perm{position:fixed;inset:0;z-index:200;background:rgba(8,8,8,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+#perm h2{font-family:var(--mono);font-size:12px;letter-spacing:4px;color:var(--red);}
+#perm p{font-size:14px;color:var(--dim);text-align:center;max-width:260px;line-height:1.7;}
+#perm button{font-family:var(--mono);font-size:11px;letter-spacing:3px;padding:13px 30px;background:var(--red);color:#fff;border:none;border-radius:4px;cursor:pointer;}
+#perm.gone{display:none;}
+
+/* ── CONFIG ── */
+.cfg-btn{
+  position:absolute;bottom:8px;right:8px;z-index:30;width:32px;height:32px;
+  border-radius:50%;border:1px solid #333;background:rgba(13,13,13,.92);
+  color:var(--dim);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .2s,color .2s;pointer-events:all;
+}
+.cfg-btn:hover{border-color:var(--blue);color:var(--blue);}
+.cfg-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.cfg-overlay.open{opacity:1;pointer-events:all;}
+.cfg-box{background:#141414;border:1px solid #2a2a2a;border-radius:10px;padding:24px 22px;width:min(340px,90vw);display:flex;flex-direction:column;gap:16px;}
+.cfg-title{font-family:var(--mono);font-size:10px;letter-spacing:4px;color:var(--red);margin-bottom:4px;}
+.cfg-row{display:flex;flex-direction:column;gap:5px;}
+.cfg-label{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--dim);}
+.cfg-input{background:#1c1c1c;border:1px solid #333;border-radius:5px;color:#c8c4bc;font-family:var(--mono);font-size:11px;padding:9px 10px;outline:none;transition:border-color .2s;user-select:text;-webkit-user-select:text;}
+.cfg-input:focus{border-color:var(--blue);}
+.cfg-input::placeholder{color:#383838;}
+.cfg-hint{font-size:10px;color:#444;font-family:var(--sans);}
+.cfg-actions{display:flex;gap:10px;margin-top:4px;}
+.cfg-save{flex:1;background:var(--blue);color:#fff;border:none;border-radius:5px;font-family:var(--mono);font-size:9px;letter-spacing:3px;padding:11px;cursor:pointer;transition:opacity .15s;}
+.cfg-save:active{opacity:.8;}
+.cfg-cancel{background:#1c1c1c;color:var(--dim);border:1px solid #333;border-radius:5px;font-family:var(--mono);font-size:9px;letter-spacing:3px;padding:11px 14px;cursor:pointer;}
+.cfg-status{font-family:var(--mono);font-size:8px;letter-spacing:1px;text-align:center;min-height:14px;transition:color .2s;}
+
+/* ── CAM DISCOVERY TOAST ── */
+.cam-toast{
+  position:absolute;top:34px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:7px;letter-spacing:2px;
+  background:rgba(0,0,0,.88);border:1px solid rgba(0,255,136,.4);
+  color:var(--green);padding:3px 10px;border-radius:2px;
+  opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap;z-index:25;
+}
+.cam-toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- Permission Screen -->
+<div id="perm">
+  <h2>M · BOT CONTROL</h2>
+  <p>Motion sensors needed for tilt-steering. Tap to grant access.</p>
+  <button id="perm-btn">ENABLE MOTION</button>
+</div>
+
+<!-- IP Config Overlay -->
+<div class="cfg-overlay" id="cfg-overlay">
+  <div class="cfg-box">
+    <div class="cfg-title">CONNECTION CONFIG</div>
+    <div class="cfg-row">
+      <div class="cfg-label">ESP32-CAM IP ADDRESS</div>
+      <input class="cfg-input" id="inp-cam" type="text" placeholder="192.168.4.2" autocomplete="off" spellcheck="false">
+      <div class="cfg-hint">Camera stream → http://&lt;IP&gt;/stream</div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-label">WEBSOCKET (ROBOT) IP</div>
+      <input class="cfg-input" id="inp-ws" type="text" placeholder="192.168.4.1" autocomplete="off" spellcheck="false">
+      <div class="cfg-hint">Control socket → ws://&lt;IP&gt;/ws</div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-label">CAM STREAM PATH</div>
+      <input class="cfg-input" id="inp-path" type="text" placeholder="/stream" autocomplete="off" spellcheck="false">
+      <div class="cfg-hint">Default: /stream</div>
+    </div>
+    <div class="cfg-status" id="cfg-status"></div>
+    <div class="cfg-actions">
+      <button class="cfg-cancel" onclick="closeConfig()">CANCEL</button>
+      <button class="cfg-save"   onclick="saveConfig()">SAVE &amp; CONNECT</button>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="col-center">
+
+    <!-- Brand bar -->
+    <div class="brand-bar">
+      <span class="brand">M·BOT</span>
+      <div class="cdot" id="cdot"></div>
+      <span class="clabel" id="clabel">OFFLINE</span>
+    </div>
+
+    <!-- CAM discovery toast -->
+    <div class="cam-toast" id="cam-toast">CAM ONLINE</div>
+
+    <!-- Mode buttons -->
+    <div class="mode-panel">
+      <button class="mpill m-on" id="btn-m" onclick="setMode('MANUAL')">MANUAL</button>
+      <button class="mpill"      id="btn-a" onclick="setMode('AUTO')">AUTO</button>
+    </div>
+
+    <!-- HUD dials -->
+    <div class="hud-panel">
+      <div class="hud-cell">
+        <div class="hud-canvas-wrap"><canvas id="dd" width="36" height="36"></canvas></div>
+        <div class="hud-info">
+          <div class="hud-label">LIDAR</div>
+          <div class="hud-val" id="vd">—</div>
+          <div class="hud-unit">cm</div>
+        </div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-canvas-wrap"><canvas id="ds" width="36" height="36"></canvas></div>
+        <div class="hud-info">
+          <div class="hud-label">SIGNAL</div>
+          <div class="hud-val" id="vs">—</div>
+          <div class="hud-unit">raw</div>
+        </div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-canvas-wrap"><canvas id="dg" width="36" height="36"></canvas></div>
+        <div class="hud-info">
+          <div class="hud-label">STEERING</div>
+          <div class="hud-val" id="vg">0°</div>
+          <div class="hud-unit">gamma</div>
+        </div>
+      </div>
+      <!-- CAM HUD cell — populated from telemetry -->
+      <div class="hud-cell cam-cell" id="cam-hud-cell">
+        <div class="hud-canvas-wrap"><canvas id="dc" width="36" height="36"></canvas></div>
+        <div class="hud-info">
+          <div class="hud-label">CAM</div>
+          <div class="hud-val" id="vc" style="color:var(--dim)">OFF</div>
+          <div class="hud-unit" id="vcfps">fps</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera feed -->
+    <div class="cam-area">
+      <div class="nosig" id="nosig">
+        <div style="font-size:24px;opacity:.25">◈</div>
+        <div id="nosig-msg">NO CAM SIGNAL</div>
+      </div>
+      <img class="camimg" id="camimg" src="" alt=""
+        onload="onCamLoad()" onerror="camErr()">
+      <div class="scanlines"></div>
+      <div class="danger-overlay" id="doverlay"></div>
+      <div class="hud">
+        <div class="hc tl"></div><div class="hc tr"></div>
+        <div class="hc bl"></div><div class="hc br"></div>
+      </div>
+      <div class="mode-hud" id="mhud">MANUAL</div>
+      <!-- CAM status badge -->
+      <div class="cam-badge dead" id="cam-badge">
+        <div class="cam-dot dead" id="cam-dot"></div>
+        <span class="cam-txt dead" id="cam-txt">CAM OFFLINE</span>
+      </div>
+      <button class="cfg-btn" onclick="openConfig()" title="Connection Settings">⚙</button>
+    </div>
+
+    <!-- Steering wheel strip -->
+    <div class="wheel-strip">
+      <button class="btn-brake" id="bbrak"
+        ontouchstart="driveStart(-1)" ontouchend="driveEnd()"
+        onmousedown="driveStart(-1)"  onmouseup="driveEnd()">
+        <span class="btn-brake-icon">⬛</span>BRAKE
+      </button>
+      <div class="wheel-center">
+        <svg id="wsv" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="rg" cx="45%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#303030"/>
+              <stop offset="100%" stop-color="#0e0e0e"/>
+            </radialGradient>
+            <radialGradient id="hg" cx="40%" cy="30%" r="60%">
+              <stop offset="0%" stop-color="#262626"/>
+              <stop offset="100%" stop-color="#080808"/>
+            </radialGradient>
+            <pattern id="cfp" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="2" height="4" fill="rgba(255,255,255,0.045)"/>
+            </pattern>
+            <clipPath id="bc"><circle cx="100" cy="100" r="25"/></clipPath>
+          </defs>
+          <circle cx="100" cy="100" r="96" fill="url(#rg)"/>
+          <circle cx="100" cy="100" r="96" fill="none" stroke="#181818" stroke-width="30"/>
+          <circle cx="100" cy="7"   r="1.3" fill="#4a4a4a"/>
+          <circle cx="100" cy="13"  r="1.3" fill="#4a4a4a"/>
+          <circle cx="193" cy="100" r="1.3" fill="#4a4a4a"/>
+          <circle cx="187" cy="100" r="1.3" fill="#4a4a4a"/>
+          <circle cx="7"   cy="100" r="1.3" fill="#4a4a4a"/>
+          <circle cx="13"  cy="100" r="1.3" fill="#4a4a4a"/>
+          <rect x="95.5" y="2" width="9" height="20" rx="2.5" fill="#e8001a"/>
+          <rect x="97"   y="3" width="6" height="5"  rx="1"   fill="rgba(255,255,255,0.15)"/>
+          <circle cx="100" cy="100" r="68" fill="none" stroke="#252525" stroke-width="1.5"/>
+          <path d="M86 108 C72 118 44 138 26 152" stroke="#1a1a1a" stroke-width="22" stroke-linecap="round" fill="none"/>
+          <path d="M86 108 C72 118 44 138 26 152" stroke="url(#cfp)" stroke-width="22" stroke-linecap="round" fill="none"/>
+          <path d="M86 108 C72 118 44 138 26 152" stroke="#2c2c2c" stroke-width="17" stroke-linecap="round" fill="none"/>
+          <path d="M114 108 C128 118 156 138 174 152" stroke="#1a1a1a" stroke-width="22" stroke-linecap="round" fill="none"/>
+          <path d="M114 108 C128 118 156 138 174 152" stroke="url(#cfp)" stroke-width="22" stroke-linecap="round" fill="none"/>
+          <path d="M114 108 C128 118 156 138 174 152" stroke="#2c2c2c" stroke-width="17" stroke-linecap="round" fill="none"/>
+          <path d="M100 100 L100 20" stroke="#1a1a1a" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <path d="M100 100 L100 20" stroke="url(#cfp)" stroke-width="18" stroke-linecap="round" fill="none"/>
+          <path d="M100 100 L100 20" stroke="#2c2c2c" stroke-width="13" stroke-linecap="round" fill="none"/>
+          <rect x="93" y="20" width="14" height="28" rx="2" fill="url(#cfp)"/>
+          <rect x="93" y="20" width="14" height="28" rx="2" fill="none" stroke="#3a3a3a" stroke-width="0.5"/>
+          <rect x="23" y="130" width="6" height="18" rx="2" fill="#e8001a" transform="rotate(-40,26,139)"/>
+          <rect x="171" y="130" width="6" height="18" rx="2" fill="#1e6bff" transform="rotate(40,174,139)"/>
+          <circle cx="100" cy="100" r="37" fill="url(#hg)" stroke="#2e2e2e" stroke-width="1.5"/>
+          <circle cx="100" cy="100" r="27" fill="#f0f0f0" stroke="#888" stroke-width="0.5"/>
+          <g clip-path="url(#bc)">
+            <path d="M100 75 A25 25 0 0 1 125 100 L100 100 Z" fill="#1e6bff"/>
+            <path d="M100 75 A25 25 0 0 0 75  100 L100 100 Z" fill="#f8f8f8"/>
+            <path d="M125 100 A25 25 0 0 1 100 125 L100 100 Z" fill="#f8f8f8"/>
+            <path d="M75  100 A25 25 0 0 0 100 125 L100 100 Z" fill="#1e6bff"/>
+          </g>
+          <circle cx="100" cy="100" r="27" fill="none" stroke="#aaa" stroke-width="1"/>
+          <rect x="87" y="135" width="26" height="7" rx="1" fill="#181818" stroke="#3a3a3a" stroke-width="0.5"/>
+          <text x="100" y="140.5" text-anchor="middle" font-family="Arial Narrow,Arial" font-size="3.2" fill="#666" letter-spacing="0.6">M PERFORMANCE</text>
+        </svg>
+        <div class="steer-ind" id="sind">0°</div>
+      </div>
+      <button class="btn-accel" id="baccel"
+        ontouchstart="driveStart(1)"  ontouchend="driveEnd()"
+        onmousedown="driveStart(1)"   onmouseup="driveEnd()">
+        <span class="btn-accel-icon">▲</span>ACCEL
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+const HZ = 20;
+const STORAGE_KEY = 'mbot_ips_v2';
+const CAM_PING_INTERVAL = 4000;   // ms — how often to ping /ping for discovery
+const CAM_RETRIES_AFTER_ERROR = 3000; // ms before retrying stream img
+
+let cfg = loadCfg();
+function loadCfg() {
+  try { const s = localStorage.getItem(STORAGE_KEY); if (s) return JSON.parse(s); } catch(_) {}
+  return { camIp: '192.168.4.2', wsIp: '192.168.4.1', camPath: '/stream' };
+}
+function saveCfg(c) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch(_) {} }
+function camUrl()  { return 'http://' + cfg.camIp + (cfg.camPath || '/stream'); }
+function pingUrl() { return 'http://' + cfg.camIp + '/ping'; }
+function wsUrl()   { return 'ws://'  + cfg.wsIp  + '/ws'; }
+
+// ── STATE ─────────────────────────────────────────────────────
+let mode = 'MANUAL';
+let gamma = 0, driveDir = 0;
+let ws = null, wsReady = false;
+let camRetryTimer = null, camPingTimer = null;
+let camLive = false;          // current known cam state from telemetry
+let prevCamLive = null;       // detect transitions for toast
+
+// ── PERMISSION ────────────────────────────────────────────────
+document.getElementById('perm-btn').onclick = async () => {
+  if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+    try { await DeviceOrientationEvent.requestPermission(); } catch(e) {}
+  }
+  document.getElementById('perm').classList.add('gone');
+  startMotion();
+  startWS();
+  startCam();
+  scheduleCamPing();
+};
+
+// ── CONFIG UI ─────────────────────────────────────────────────
+function openConfig() {
+  document.getElementById('inp-cam').value  = cfg.camIp;
+  document.getElementById('inp-ws').value   = cfg.wsIp;
+  document.getElementById('inp-path').value = cfg.camPath || '/stream';
+  document.getElementById('cfg-status').textContent = '';
+  document.getElementById('cfg-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('inp-cam').focus(), 100);
+}
+function closeConfig() { document.getElementById('cfg-overlay').classList.remove('open'); }
+function saveConfig() {
+  const camIp   = document.getElementById('inp-cam').value.trim();
+  const wsIp    = document.getElementById('inp-ws').value.trim();
+  const camPath = document.getElementById('inp-path').value.trim() || '/stream';
+  const st      = document.getElementById('cfg-status');
+  if (!camIp || !wsIp) {
+    st.textContent = '⚠ BOTH IPs ARE REQUIRED'; st.style.color = '#ff8c00'; return;
+  }
+  cfg = { camIp, wsIp, camPath };
+  saveCfg(cfg);
+  st.textContent = '✓ SAVED — RECONNECTING…'; st.style.color = '#00ff88';
+  setTimeout(() => { closeConfig(); reconnect(); }, 700);
+}
+function reconnect() {
+  if (ws) { try { ws.close(); } catch(_) {} ws = null; wsReady = false; setConn(false); }
+  clearTimeout(camRetryTimer);
+  startCam();
+  startWS();
+}
+
+// ── MOTION ────────────────────────────────────────────────────
+function startMotion() {
+  window.addEventListener('deviceorientation', e => {
+    const raw = e.gamma ?? 0;
+    gamma = Math.max(-45, Math.min(45, -raw));
+    const rot = (gamma / 45) * 120;
+    document.getElementById('wsv').style.transform = `rotate(${rot}deg)`;
+    const s = Math.round(gamma);
+    const label = (s > 0 ? '+' : '') + s + '°';
+    document.getElementById('sind').textContent = label;
+    document.getElementById('vg').textContent   = label;
+    const nc = gamma < -5 ? '#1e6bff' : gamma > 5 ? '#e8001a' : '#484848';
+    drawNeedle('dg', gamma, 45, nc);
+  }, true);
+}
+
+// ── DRIVE BUTTONS ─────────────────────────────────────────────
+function driveStart(d) {
+  driveDir = d;
+  document.getElementById('bbrak').classList.toggle('press', d === -1);
+  document.getElementById('baccel').classList.toggle('press', d === 1);
+}
+function driveEnd() {
+  driveDir = 0;
+  document.getElementById('bbrak').classList.remove('press');
+  document.getElementById('baccel').classList.remove('press');
+}
+
+// ── WEBSOCKET ─────────────────────────────────────────────────
+function startWS() {
+  try {
+    ws = new WebSocket(wsUrl());
+    ws.onopen    = () => { wsReady = true;  setConn(true); };
+    ws.onclose   = () => { wsReady = false; setConn(false); setTimeout(startWS, 2000); };
+    ws.onerror   = () => { wsReady = false; };
+    ws.onmessage = e => { try { applyTelem(JSON.parse(e.data)); } catch(_){} };
+  } catch(e) { setTimeout(startWS, 3000); }
+}
+function setConn(ok) {
+  document.getElementById('cdot').classList.toggle('on', ok);
+  document.getElementById('clabel').textContent = ok ? 'LIVE' : 'OFFLINE';
+}
+
+setInterval(() => {
+  if (!wsReady) return;
+  const throttle = driveDir === 1 ? 180 : driveDir === -1 ? -255 : 0;
+  ws.send(JSON.stringify({ b: throttle, g: +gamma.toFixed(1), mode }));
+}, 1000 / HZ);
+
+// ── TELEMETRY ─────────────────────────────────────────────────
+function applyTelem(d) {
+  // LiDAR
+  const dist   = d.dist ?? 0;
+  const signal = d.str  ?? 0;
+  const col = dist < 30 ? '#e8001a' : dist < 80 ? '#ff8c00' : '#00ff88';
+  const vd = document.getElementById('vd');
+  vd.textContent = dist; vd.style.color = col;
+  document.getElementById('vs').textContent = signal;
+  drawArc('dd', dist,   400,  col);
+  drawArc('ds', signal, 2000, '#1e6bff');
+  const ov = document.getElementById('doverlay');
+  ov.className = 'danger-overlay' + (dist < 30 ? ' danger' : dist < 80 ? ' warn' : '');
+
+  // CAM status from UART bridge
+  if ('cam_alive' in d) {
+    const alive = !!d.cam_alive;
+    const fps   = parseFloat(d.cam_fps) || 0;
+    const ip    = d.cam_ip || cfg.camIp;
+    updateCamHud(alive, fps, ip);
+
+    // If cam just came online and stream img is dead, reload it
+    if (alive && !prevCamLive) {
+      clearTimeout(camRetryTimer);
+      startCam();
+    }
+    // If IP changed from what we have stored, update config silently
+    if (alive && ip && ip !== cfg.camIp && ip !== '') {
+      cfg.camIp = ip;
+      saveCfg(cfg);
+    }
+    prevCamLive = alive;
+  }
+}
+
+// ── CAM HUD UPDATE ────────────────────────────────────────────
+function updateCamHud(alive, fps, ip) {
+  camLive = alive;
+
+  // Badge (bottom-right of cam area)
+  const badge = document.getElementById('cam-badge');
+  const dot   = document.getElementById('cam-dot');
+  const txt   = document.getElementById('cam-txt');
+  if (alive) {
+    badge.className = 'cam-badge live';
+    dot.className   = 'cam-dot live';
+    txt.className   = 'cam-txt live';
+    txt.textContent = 'CAM ' + fps.toFixed(1) + ' FPS';
+  } else {
+    badge.className = 'cam-badge dead';
+    dot.className   = 'cam-dot dead';
+    txt.className   = 'cam-txt dead';
+    txt.textContent = 'CAM OFFLINE';
+  }
+
+  // HUD cell
+  const cell = document.getElementById('cam-hud-cell');
+  const vc   = document.getElementById('vc');
+  const vcfps= document.getElementById('vcfps');
+  if (alive) {
+    cell.classList.add('live'); cell.classList.remove('dead');
+    vc.textContent = fps.toFixed(1); vc.style.color = '#00ff88';
+    vcfps.textContent = 'fps';
+  } else {
+    cell.classList.remove('live'); cell.classList.add('dead');
+    vc.textContent = 'OFF'; vc.style.color = 'var(--dim)';
+    vcfps.textContent = 'fps';
+  }
+  drawCamDial('dc', fps, 30, alive ? '#00ff88' : '#e8001a');
+
+  // Toast on transition to online
+  if (alive && prevCamLive === false) showCamToast('CAM ONLINE  ' + ip);
+  if (!alive && prevCamLive === true) showCamToast('CAM OFFLINE');
+}
+
+let toastTimer = null;
+function showCamToast(msg) {
+  const t = document.getElementById('cam-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── CAM DISCOVERY PING ────────────────────────────────────────
+// Independently ping /ping on the CAM IP to detect it early,
+// even before the WS telemetry bridge confirms cam_alive.
+// Once WS telemetry is running this is just a backup.
+async function pingCam() {
+  try {
+    const r = await fetch(pingUrl(), { signal: AbortSignal.timeout(1500) });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.alive && !camLive) {
+        // Cam is reachable but telemetry hasn't caught up yet
+        updateCamHud(true, 0, data.ip || cfg.camIp);
+        prevCamLive = true;
+        clearTimeout(camRetryTimer);
+        startCam();
+      }
+    }
+  } catch(_) {
+    // CAM not reachable yet — normal during boot
+  }
+}
+function scheduleCamPing() {
+  pingCam();
+  camPingTimer = setInterval(pingCam, CAM_PING_INTERVAL);
+}
+
+// ── CAMERA STREAM ─────────────────────────────────────────────
+function startCam() {
+  const img = document.getElementById('camimg');
+  img.src = camUrl() + '?t=' + Date.now();
+  document.getElementById('nosig').style.display = 'none';
+}
+function onCamLoad() {
+  document.getElementById('camimg').classList.add('ok');
+  document.getElementById('nosig').style.display = 'none';
+}
+function camErr() {
+  document.getElementById('nosig').style.display = 'flex';
+  document.getElementById('nosig-msg').textContent = 'NO CAM SIGNAL · ' + cfg.camIp;
+  document.getElementById('camimg').classList.remove('ok');
+  camRetryTimer = setTimeout(startCam, CAM_RETRIES_AFTER_ERROR);
+}
+
+// ── MODE ──────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-m').className = 'mpill' + (m==='MANUAL' ? ' m-on' : '');
+  document.getElementById('btn-a').className = 'mpill' + (m==='AUTO'   ? ' a-on' : '');
+  const h = document.getElementById('mhud');
+  h.textContent = m; h.className = 'mode-hud' + (m==='AUTO' ? ' auto' : '');
+  if (wsReady) ws.send(JSON.stringify({ mode: m }));
+}
+
+// ── DIAL RENDERERS ────────────────────────────────────────────
+function drawArc(id, val, max, color) {
+  const c = document.getElementById(id);
+  const x = c.getContext('2d'), W = c.width, H = c.height;
+  const r = W*.37, cx = W/2, cy = H/2;
+  x.clearRect(0,0,W,H);
+  const sa = Math.PI*.75, ea = Math.PI*2.25;
+  const pct = Math.min(val/max, 1);
+  x.beginPath(); x.arc(cx,cy,r,sa,ea);
+  x.strokeStyle='#222'; x.lineWidth=4; x.lineCap='round'; x.stroke();
+  if (pct > 0) {
+    const fa = sa + pct*(ea-sa);
+    x.beginPath(); x.arc(cx,cy,r,sa,fa);
+    x.strokeStyle=color; x.lineWidth=4; x.lineCap='round'; x.stroke();
+    x.beginPath(); x.arc(cx,cy,r,sa,fa);
+    x.strokeStyle=color; x.lineWidth=9; x.globalAlpha=.12; x.stroke();
+    x.globalAlpha=1;
+  }
+}
+
+function drawNeedle(id, val, max, color) {
+  const c = document.getElementById(id);
+  const x = c.getContext('2d'), W = c.width, H = c.height;
+  const r = W*.36, cx = W/2, cy = H/2;
+  x.clearRect(0,0,W,H);
+  x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2);
+  x.strokeStyle='#222'; x.lineWidth=4; x.stroke();
+  const angle = (val/max)*Math.PI*.85 - Math.PI/2;
+  const ax = cx+r*.72*Math.cos(angle), ay = cy+r*.72*Math.sin(angle);
+  x.beginPath(); x.moveTo(cx,cy); x.lineTo(ax,ay);
+  x.strokeStyle=color; x.lineWidth=2.5; x.lineCap='round'; x.stroke();
+  x.beginPath(); x.arc(ax,ay,2.5,0,Math.PI*2); x.fillStyle=color; x.fill();
+  x.beginPath(); x.arc(cx,cy,3,0,Math.PI*2); x.fillStyle='#333'; x.fill();
+}
+
+// CAM dial: segmented FPS bar
+function drawCamDial(id, fps, maxFps, color) {
+  const c = document.getElementById(id);
+  const x = c.getContext('2d'), W = c.width, H = c.height;
+  const r = W*.37, cx = W/2, cy = H/2;
+  x.clearRect(0,0,W,H);
+  const segs = 8, gap = 0.06;
+  const sa = Math.PI*.75, span = Math.PI*1.5;
+  const pct = Math.min(fps / maxFps, 1);
+  const lit = Math.round(pct * segs);
+  for (let i = 0; i < segs; i++) {
+    const s0 = sa + (i/segs)*span + gap/2;
+    const s1 = sa + ((i+1)/segs)*span - gap/2;
+    x.beginPath(); x.arc(cx,cy,r,s0,s1);
+    x.strokeStyle = i < lit ? color : '#222';
+    x.lineWidth = 5; x.lineCap = 'butt'; x.stroke();
+  }
+  x.beginPath(); x.arc(cx,cy,3,0,Math.PI*2);
+  x.fillStyle = camLive ? color : '#333'; x.fill();
+}
+
+// ── INIT DIALS ────────────────────────────────────────────────
+drawArc('dd', 0, 400,  '#00ff88');
+drawArc('ds', 0, 2000, '#1e6bff');
+drawNeedle('dg', 0, 45, '#484848');
+drawCamDial('dc', 0, 30, '#484848');
+</script>
+</body>
+</html>
